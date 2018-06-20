@@ -75,14 +75,16 @@ async def hello(request):
     #text = str(await get_token('https://oauth.vk.com/blank.html#code=399e16b7eb9815633b'))
     return web.Response(text=text)
 
-@routes.get('/hook') #get change
+@routes.post('/hook') #get change
 async def webhook(request):
     res_json = await request.json()
     print(res_json)
     if 'inline_query' in res_json:
         await inline()
+        print("In")
     elif 'message' in res_json or 'channel_post' in res_json:
         await message()
+        print("Msg")
     return web.Response(status=200)
 
 async def web_app():
