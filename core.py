@@ -250,7 +250,7 @@ async def start_text(q, chat_id):
             
 async def help_text(q, chat_id):
     text = '/start - use to bind your vk\n/groups - choose groups what you want to see'
-    await get(await msg(text , chat_id)
+    await get(await msg(text , chat_id))
   
 commands = {'/url': make_token,
             '/groups': choose_groups,
