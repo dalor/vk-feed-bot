@@ -119,18 +119,18 @@ async def get_feeds():
             for item in other['items']:
                 source = -item['source_id']
                 attach = []
-                print(item)
-                for att in item['attachments']:
-                    if att['type'] == 'photo':
-                        max_res = 0
-                        best_ = ''
-                        for r in att['photo']:
-                            if 'photo_' in r:
-                                res = int(r.split('_')[1])
-                                if res > max_res:
-                                    max_res = res
-                                    best_ = r
-                        attach.append(att['photo'][best_])
+                if 'attachments' in item:
+                    for att in item['attachments']:
+                        if att['type'] == 'photo':
+                            max_res = 0
+                            best_ = ''
+                            for r in att['photo']:
+                                if 'photo_' in r:
+                                    res = int(r.split('_')[1])
+                                    if res > max_res:
+                                        max_res = res
+                                        best_ = r
+                            attach.append(att['photo'][best_])
                 if len(attach) > 0:
                     all_.append({'id': user, 'pics': attach, 'group': groups[source]['name'], 'url': 'https://vk.com/' +  groups[source]['login'] + '?w=wall-' + str(source) + '_' + str(item['post_id'])})
     return all_
