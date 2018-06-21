@@ -245,8 +245,10 @@ async def choose_groups(w, chat_id):
             await db.commit()
             
 async def start_text(q, chat_id):
-    butn = [[await inline_button('Register url', url='oauth.vk.com/authorize?client_id=6610748?scope=wall,friends,offline,groups?response_type=token')]]
-    await get(await inline_keyboard('Go to this link,\nafter passing on this page,\ncopy url and write command:\n/url COPIED_URL', butn, chat_id))
+    butn = [[await inline_button('Register url', url='https://goo.gl/xfAETn')]]
+    t = await inline_keyboard('Go to this link,\nafter passing on this page,\ncopy url and write command:\n/url COPIED_URL', butn, chat_id)
+    print(t)
+    print(await get(t))
             
             
 commands = {'/url': make_token,
@@ -265,18 +267,16 @@ async def message(info):
 
 async def period(app):
     async def check(app):
-        while True:
-            await send_feeds() #
-            await asyncio.sleep(period_time)
+        await send_feeds() #
+        await asyncio.sleep(period_time)
     app.loop.create_task(check(app))
 
 routes = web.RouteTableDef()
 
 @routes.get('/')
 async def hello(request):
-    print(request.path_qs)
-    text = await send_feeds()
-    return web.Response(text=str(text))
+    await send_feeds()
+    return web.Response(text='123')
 
 @routes.post('/hook')
 async def webhook(request):
