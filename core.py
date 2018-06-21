@@ -8,7 +8,7 @@ client_id = '6610748'
 client_secret = 'GWE5bmNjlCHchKgbfXgE'
 bot_id = '344603315:AAHs9sHfDvoYpWFAqLqQiUAJ03xEyi8DdHM'
 database = 'db.db'
-period_time = 180
+#period_time = 180
 per_page = 10
 max_groups = 100
 
@@ -246,14 +246,15 @@ async def choose_groups(w, chat_id):
             
 async def start_text(q, chat_id):
     butn = [[await inline_button('Register url', url='https://goo.gl/xfAETn')]]
-    t = await inline_keyboard('Go to this link,\nafter passing on this page,\ncopy url and write command:\n/url COPIED_URL', butn, chat_id)
-    print(t)
-    print(await get(t))
+    await get(await inline_keyboard('Go to this link,\nafter passing on this page,\ncopy url and write command:\n/url COPIED_URL\nMore in /help', butn, chat_id))
             
-            
+async def help_text(q, chat_id):
+    text = '/start - use to bind your vk\n/groups - choose groups what you want to see'
+  
 commands = {'/url': make_token,
             '/groups': choose_groups,
-            '/start': start_text}
+            '/start': start_text,
+            '/help': help_text}
 
 async def message(info):
     chat_id = info['chat']['id']
@@ -265,23 +266,24 @@ async def message(info):
                 await commands[com](words, chat_id)
                 break
 
-async def period(app):
-    async def check(app):
-        await send_feeds() #
-        await asyncio.sleep(period_time)
-    app.loop.create_task(check(app))
+#async def period(app):
+#    async def check(app):
+#        while True:
+#            await send_feeds() #
+#            await asyncio.sleep(period_time)
+#    app.loop.create_task(check(app))
 
 routes = web.RouteTableDef()
 
 @routes.get('/')
 async def hello(request):
     await send_feeds()
-    return web.Response(text='123')
+    return web.Response(text='Go away')
 
 @routes.post('/hook')
 async def webhook(request):
     res_json = await request.json()
-    print(res_json)
+    #print(res_json)
     if 'callback_query' in res_json:
         await callback(res_json['callback_query'])
     elif 'message' in res_json:
@@ -301,7 +303,7 @@ async def create_database(app):
 async def web_app():
     app = web.Application()
     app.on_startup.append(create_database)
-    app.on_startup.append(period)
+    #app.on_startup.append(period)
     app.add_routes(routes)
     return app
 
