@@ -119,6 +119,7 @@ async def get_feeds():
             for item in other['items']:
                 source = -item['source_id']
                 attach = []
+                print(item)
                 for att in item['attachments']:
                     if att['type'] == 'photo':
                         max_res = 0
@@ -274,7 +275,8 @@ routes = web.RouteTableDef()
 @routes.get('/')
 async def hello(request):
     print(request.path_qs)
-    return web.Response(text='Go away')
+    text = await send_feeds()
+    return web.Response(text=str(text))
 
 @routes.post('/hook')
 async def webhook(request):
