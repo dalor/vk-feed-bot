@@ -136,7 +136,7 @@ async def make_token(w, chat_id):
     token = await get_token(w[1])
     if token:
         async with aiosqlite.connect(database) as db:
-            await db.execute('insert into users (id, token, last_call) values (?, ?, 0, 0)', [chat_id, token]) ##
+            await db.execute('insert into users (id, token, last_call, last_time) values (?, ?, 0, 0)', [chat_id, token]) ##
             await db.commit()
         await get(await msg('Succefull registered!' , chat_id))
     else:
