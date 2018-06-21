@@ -269,6 +269,8 @@ async def period(app):
             await asyncio.sleep(period_time)
     app.loop.create_task(check(app))
 
+routes = web.RouteTableDef()
+
 @routes.get('/')
 async def hello(request):
     print(request.path_qs)
