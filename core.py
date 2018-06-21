@@ -124,6 +124,7 @@ async def callback(info):
             await update(mess_id, chat_id)
 
 async def make_token(w, chat_id):
+    if len(w) < 2: return
     token = await get_token(w[1])
     if token:
         async with aiosqlite.connect(database) as db:
