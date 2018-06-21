@@ -230,7 +230,7 @@ async def create_database(app):
 async def web_app():
     app = web.Application()
     app.on_startup.append(create_database)
-    app.on_startup.append(period)
+    #app.on_startup.append(period)
     app.add_routes(routes)
     return app
 
