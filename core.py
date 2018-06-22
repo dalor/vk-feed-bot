@@ -183,12 +183,13 @@ async def write_groups(chat_id):
             old = [gr[0] for gr in await (await db.execute('select group_id from groups where id = ?', [int(chat_id)])).fetchall()]
             await db.execute('delete from groups where id = ?', [int(chat_id)])
             await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
+            await db.commit()
             groups = await get_groups(token)
-                for gr in groups:
-                    if gr['id'] in old: type_ = 1
-                    else: type_ = 0
-                    await db.execute('insert into temp_groups (group_id, name, id, type) values (?, ?, ?, ?)', [int(gr['id']), gr['name'], int(chat_id), type_])
-                await db.commit()
+            for gr in groups:
+                if gr['id'] in old: type_ = 1
+                else: type_ = 0
+                await db.execute('insert into temp_groups (group_id, name, id, type) values (?, ?, ?, ?)', [int(gr['id']), gr['name'], int(chat_id), type_])
+            await db.commit()
 
 async def update_groups(chat_id, page=0, update_id=None):
     async with aiosqlite.connect(database) as db:
