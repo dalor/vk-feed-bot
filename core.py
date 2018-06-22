@@ -95,16 +95,17 @@ async def get_token_from_code(url):
 async def get_vk_users():
     async with aiosqlite.connect(database) as db:
         users = await (await db.execute('select * from users')).fetchall()
-        feed_u = {}
+        feed_u = []
         for user in users:
-            groups = [str(-gr[0]) for gr in await (await db.execute('select group_id from groups where id = ?', [user[0]])).fetchall()]
-            if len(groups) > 0:
-                feed_u[user[0]] = {'token': user[1], 'start_time': user[2], 'groups': ','.join(groups)}
+            if user[3] == 1:
+                groups = [str(-gr[0]) for gr in await (await db.execute('select group_id from groups where id = ?', [user[0]])).fetchall()]
+                if len(groups) > 0:
+                    feed_u.append({'id': user[0], 'token': user[1], 'start_time': user[2], 'groups': ','.join(groups)})
         return feed_u
 
 async def get_feeds():
     users = await get_vk_users()
-    urls = [{'url': 'https://api.vk.com/method/newsfeed.get?access_token=' + users[user]['token'] + '&filters=post&start_time=' + str(users[user]['start_time'] + 1) + '&source_ids=' + users[user]['groups'] + '&count=100&v=5.8', 'id': user} for user in users]
+    urls = [{'url': 'https://api.vk.com/method/newsfeed.get?access_token=' + user['token'] + '&filters=post&start_time=' + str(user['start_time'] + 1) + '&source_ids=' + user['groups'] + '&count=100&v=5.8', 'id': user['id']} for user in users]
     resps = await a_lot_of(urls, list=False)
     all_ = []
     async with aiosqlite.connect(database) as db:
@@ -141,10 +142,10 @@ async def send_feeds():
     sup = await make_sup('&# ','_')
     for feed in feeds:
         if len(feed['pics']) > 1:
-            media = [await input_media(pic, text='\[' + sup(feed['group']) + ' \]\(' + feed['url'] + '\)') for pic in feed['pics']]
+            media = [await input_media(pic, text='[' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
             urls.append(await media_group(media, feed['id']))
         else:
-            urls.append(await send_photo(feed['pics'][0], feed['id'], text='\[' + sup(feed['group']) + ' \]\(' + feed['url'] + '\)'))
+            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[' + sup(feed['group']) + ' ](' + feed['url'] + ')'))
     await a_lot_of(urls)
     
 async def get_groups(token, user_id = None):
@@ -177,6 +178,7 @@ async def del_group(group, chat_id):
 
 async def write_groups(chat_id):
     async with aiosqlite.connect(database) as db:
+        await db.execute('update users set ready = 0 where id = ?',[int(chat_id)])
         resp = await (await db.execute('select token from users where id = ?', [int(chat_id)])).fetchone()
         if resp:
             token = resp[0]
@@ -220,12 +222,13 @@ async def update_groups(chat_id, page=0, update_id=None):
 async def approve_groups(mess_id, chat_id):
     async with aiosqlite.connect(database) as db:
         groups_id = await (await db.execute('select group_id from temp_groups where id = ? and type > 0', [int(chat_id)])).fetchall()
+        await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
+        await db.execute('delete from groups where id = ?', [int(chat_id)])
+        for gr in groups_id:
+            await db.execute('insert into groups(group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
         if len(groups_id) > 0:
-            await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
-            await db.execute('delete from groups where id = ?', [int(chat_id)])
-            for gr in groups_id:
-                await db.execute('insert into groups(group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
-            await db.commit()
+            await db.execute('update users set ready = 1 where id = ?',[int(chat_id)])
+        await db.commit()
     await get(await del_msg(mess_id, chat_id))
 
 async def reload_groups(mess_id, chat_id):
@@ -260,7 +263,7 @@ async def make_token(w, chat_id):
     token = await get_token_from_url(w[1])
     if token and await get_id(token):
         async with aiosqlite.connect(database) as db:
-            await db.execute('insert or replace into users (id, token, last_time) values (?, ?, 0)', [chat_id, token]) ##
+            await db.execute('insert or replace into users (id, token, last_time) values (?, ?, 0, 0)', [chat_id, token]) ##
             await db.commit()
         await get(await msg('Succefull registered!' , chat_id))
     else:
@@ -321,7 +324,7 @@ async def webhook(request):
 
 async def create_database(app):
     async with aiosqlite.connect(database) as db:
-        await db.execute('create table if not exists users (id integer primary key not null, token text not null, last_time integer not null)')
+        await db.execute('create table if not exists users (id integer primary key not null, token text not null, last_time integer not null, ready integer not null)')
         await db.execute('create table if not exists groups (group_id integer not null, id integer not null)')
         await db.execute('create table if not exists temp_groups (group_id integer not null, name text not null, id integer not null, type integer not null)')
         await db.commit()
