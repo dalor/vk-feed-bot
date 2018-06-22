@@ -107,7 +107,6 @@ async def get_feeds():
     urls = [{'url': 'https://api.vk.com/method/newsfeed.get?access_token=' + users[user]['token'] + '&filters=post&start_time=' + str(users[user]['start_time'] + 1) + '&source_ids=' + users[user]['groups'] + '&count=100&v=5.8', 'id': user} for user in users]
     resps = await a_lot_of(urls, list=False)
     all_ = []
-    sup = await make_sup('&#','_')
     async with aiosqlite.connect(database) as db:
         for resp in resps:
             user = resp['id']
@@ -133,18 +132,19 @@ async def get_feeds():
                                         best_ = r
                             attach.append(att['photo'][best_])
                 if len(attach) > 0:
-                    all_.append({'id': user, 'pics': attach, 'group': sup(groups[source]['name']), 'url': 'https://vk.com/' +  groups[source]['login'] + '?w=wall-' + str(source) + '_' + str(item['post_id'])})
+                    all_.append({'id': user, 'pics': attach, 'group': groups[source]['name'], 'url': 'https://vk.com/' +  groups[source]['login'] + '?w=wall-' + str(source) + '_' + str(item['post_id'])})
     return all_
 
 async def send_feeds():
     feeds = await get_feeds()
     urls = []
+    sup = await make_sup('&# ','_')
     for feed in feeds:
         if len(feed['pics']) > 1:
-            media = [await input_media(pic, text='[' + feed['group'] + '](' + feed['url'] + ')') for pic in feed['pics']]
+            media = [await input_media(pic, text='[ #' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
             urls.append(await media_group(media, feed['id']))
         else:
-            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[' + feed['group'] + '](' + feed['url'] + ')'))
+            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[ #' + sup(feed['group']) + ' ](' + feed['url'] + ')'))
     await a_lot_of(urls)
     
 async def get_groups(token, user_id = None):
@@ -227,7 +227,7 @@ async def approve_groups(mess_id, chat_id):
             for gr in groups_id:
                 await db.execute('insert into groups(group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
             await db.commit()
-    await del_msg(mess_id, chat_id)
+    print(await del_msg(mess_id, chat_id))
 
 async def reload_groups(mess_id, chat_id):
     await write_groups(chat_id)
