@@ -139,7 +139,7 @@ async def get_feeds():
 async def send_feeds():
     feeds = await get_feeds()
     urls = []
-    sup = await make_sup('&# ','_')
+    sup = await make_sup('&#',' ')
     for feed in feeds:
         if len(feed['pics']) > 1:
             media = [await input_media(pic, text='[' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
