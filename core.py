@@ -141,10 +141,10 @@ async def send_feeds():
     sup = await make_sup('&# ','_')
     for feed in feeds:
         if len(feed['pics']) > 1:
-            media = [await input_media(pic, text='[ #' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
+            media = [await input_media(pic, text='[ \#' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
             urls.append(await media_group(media, feed['id']))
         else:
-            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[ #' + sup(feed['group']) + ' ](' + feed['url'] + ')'))
+            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[ \#' + sup(feed['group']) + ' ](' + feed['url'] + ')'))
     await a_lot_of(urls)
     
 async def get_groups(token, user_id = None):
@@ -207,7 +207,7 @@ async def update_groups(chat_id, page=0, update_id=None):
         line.append(await inline_button('✅','approve 0 0'))
         line.append(await inline_button('♻','reload 0 0'))
         if len(btns) == 0:
-            await del_msg(update_id, chat_id)
+            await get(await del_msg(update_id, chat_id))
             return
         if len(btns) > per_page:
             btns = btns[:-1]
@@ -227,7 +227,7 @@ async def approve_groups(mess_id, chat_id):
             for gr in groups_id:
                 await db.execute('insert into groups(group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
             await db.commit()
-    print(await del_msg(mess_id, chat_id))
+    await get(await del_msg(mess_id, chat_id))
 
 async def reload_groups(mess_id, chat_id):
     await write_groups(chat_id)
