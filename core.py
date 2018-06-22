@@ -99,7 +99,7 @@ async def get_vk_users():
         for user in users:
             groups = [str(-gr[0]) for gr in await (await db.execute('select group_id from groups where id = ?', [user[0]])).fetchall()]
             if len(groups) > 0:
-                feed_u[user[0]] = {'token': user[1], 'start_time': user[3], 'groups': ','.join(groups)}
+                feed_u[user[0]] = {'token': user[1], 'start_time': user[2], 'groups': ','.join(groups)}
         return feed_u
 
 async def get_feeds():
@@ -107,6 +107,7 @@ async def get_feeds():
     urls = [{'url': 'https://api.vk.com/method/newsfeed.get?access_token=' + users[user]['token'] + '&filters=post&start_time=' + str(users[user]['start_time'] + 1) + '&source_ids=' + users[user]['groups'] + '&count=100&v=5.8', 'id': user} for user in users]
     resps = await a_lot_of(urls, list=False)
     all_ = []
+    sup = await make_sup('&#','_')
     async with aiosqlite.connect(database) as db:
         for resp in resps:
             user = resp['id']
@@ -132,7 +133,7 @@ async def get_feeds():
                                         best_ = r
                             attach.append(att['photo'][best_])
                 if len(attach) > 0:
-                    all_.append({'id': user, 'pics': attach, 'group': groups[source]['name'], 'url': 'https://vk.com/' +  groups[source]['login'] + '?w=wall-' + str(source) + '_' + str(item['post_id'])})
+                    all_.append({'id': user, 'pics': attach, 'group': sup(groups[source]['name']), 'url': 'https://vk.com/' +  groups[source]['login'] + '?w=wall-' + str(source) + '_' + str(item['post_id'])})
     return all_
 
 async def send_feeds():
@@ -207,7 +208,7 @@ async def update_groups(chat_id, page=0, update_id=None):
         line.append(await inline_button('✅','approve 0 0'))
         line.append(await inline_button('♻','reload 0 0'))
         if len(btns) == 0:
-            del_msg(update_id, chat_id)
+            await del_msg(update_id, chat_id)
             return
         if len(btns) > per_page:
             btns = btns[:-1]
@@ -221,6 +222,7 @@ async def update_groups(chat_id, page=0, update_id=None):
 async def approve_groups(mess_id, chat_id):
     async with aiosqlite.connect(database) as db:
         groups_id = await (await db.execute('select group_id from temp_groups where id = ? and type > 0', [int(chat_id)])).fetchall()
+        print(groups_id)
         if len(groups_id) > 0:
             await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
             for gr in groups_id:
