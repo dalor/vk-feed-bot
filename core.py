@@ -141,10 +141,10 @@ async def send_feeds():
     sup = await make_sup('&# ','_')
     for feed in feeds:
         if len(feed['pics']) > 1:
-            media = [await input_media(pic, text='[ \#' + sup(feed['group']) + ' ](' + feed['url'] + ')') for pic in feed['pics']]
+            media = [await input_media(pic, text='\[' + sup(feed['group']) + ' \]\(' + feed['url'] + '\)') for pic in feed['pics']]
             urls.append(await media_group(media, feed['id']))
         else:
-            urls.append(await send_photo(feed['pics'][0], feed['id'], text='[ \#' + sup(feed['group']) + ' ](' + feed['url'] + ')'))
+            urls.append(await send_photo(feed['pics'][0], feed['id'], text='\[' + sup(feed['group']) + ' \]\(' + feed['url'] + '\)'))
     await a_lot_of(urls)
     
 async def get_groups(token, user_id = None):
@@ -181,7 +181,6 @@ async def write_groups(chat_id):
         if resp:
             token = resp[0]
             old = [gr[0] for gr in await (await db.execute('select group_id from groups where id = ?', [int(chat_id)])).fetchall()]
-            await db.execute('delete from groups where id = ?', [int(chat_id)])
             await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
             await db.commit()
             groups = await get_groups(token)
@@ -221,9 +220,9 @@ async def update_groups(chat_id, page=0, update_id=None):
 async def approve_groups(mess_id, chat_id):
     async with aiosqlite.connect(database) as db:
         groups_id = await (await db.execute('select group_id from temp_groups where id = ? and type > 0', [int(chat_id)])).fetchall()
-        print(groups_id)
         if len(groups_id) > 0:
             await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
+            await db.execute('delete from groups where id = ?', [int(chat_id)])
             for gr in groups_id:
                 await db.execute('insert into groups(group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
             await db.commit()
