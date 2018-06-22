@@ -60,8 +60,8 @@ async def inline_button(text, callback_data=None, url=None):
         return {'text': text, 'url': url}
     else: None
 
-async def make_sup(sup):
-    return lambda s: ''.join([' ' if c in sup else c for c in s])
+async def make_sup(sup, a):
+    return lambda s: ''.join([a if c in sup else c for c in s])
 
 async def a_lot_of(urls, list = True):
     async with ClientSession() as session:
@@ -151,8 +151,11 @@ async def get_groups(token, user_id = None):
         groups_get_url = 'https://api.vk.com/method/groups.get?access_token=' + token + '&user_id=' + str(user_id) + '&extended=1&count=' + str(max_groups) + '&v=5.8'
     else:
         groups_get_url = 'https://api.vk.com/method/groups.get?access_token=' + token + '&extended=1&count=' + str(max_groups) + '&v=5.8'
-    res_groups = (await get(groups_get_url))['response']
-    return [{'id': gr['id'], 'name': gr['name']} for gr in res_groups['items']]
+    resp = await get(groups_get_url)
+    if 'response' in resp:
+        return [{'id': gr['id'], 'name': gr['name']} for gr in resp['response']['items']]
+    else:
+        return None
     
 async def get_id(token):
     resp = await get('https://api.vk.com/method/users.get?access_token=' + token + '&v=5.8')
@@ -163,33 +166,71 @@ async def get_id(token):
 
 async def add_group(group, chat_id):
     async with aiosqlite.connect(database) as db:
-        await db.execute('insert into groups(group_id, id) select ?, ? where not exists(select 1 from groups where group_id = ? and id =?)', [int(group), int(chat_id), int(group), int(chat_id)])
+        await db.execute('update temp_groups set type = 1 where group_id = ? and id =?', [int(group), int(chat_id)])
         await db.commit()
 
 async def del_group(group, chat_id):
     async with aiosqlite.connect(database) as db:
-        await db.execute('delete from groups where group_id = ? and id = ?', [int(group), int(chat_id)])
+        await db.execute('update temp_groups set type = 0 where group_id = ? and id =?', [int(group), int(chat_id)])
         await db.commit()
 
-async def update(page, mess_id, chat_id):
+async def write_groups(chat_id):
     async with aiosqlite.connect(database) as db:
-        norm = [oth[0] for oth in await (await db.execute('select group_id from groups where id = ?', [int(chat_id)])).fetchall()]
-        temp = await (await db.execute('select group_id, name from temp_groups where id = ? limit ? offset ?', [int(chat_id), per_page + 1, per_page * page])).fetchall()
+        resp = await (await db.execute('select token from users where id = ?', [int(chat_id)])).fetchone()
+        if resp:
+            token = resp[0]
+            old = [gr[0] for gr in await (await db.execute('select group_id from groups where id = ?', [int(chat_id)])).fetchall()]
+            await db.execute('delete from groups where id = ?', [int(chat_id)])
+            await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
+            await db.commit()
+            groups = await get_groups(token)
+            async with aiosqlite.connect(database) as db:
+                for gr in groups:
+                    if gr['id'] in old: type_ = 1
+                    else: type_ = 0
+                    await db.execute('insert into temp_groups (group_id, name, id, type) values (?, ?, ?, ?)', [int(gr['id']), gr['name'], int(chat_id), type_])
+                await db.commit()
+
+async def update_groups(chat_id, page=0, update_id=None):
+    async with aiosqlite.connect(database) as db:
+        temp = await (await db.execute('select group_id, name, type from temp_groups where id = ? limit ? offset ?', [int(chat_id), per_page + 1, per_page * page])).fetchall()
         btns = []
-        sup = await make_sup('&')
+        sup = await make_sup('&#',' ')
         for te in temp:
-            if te[0] in norm:
+            if te[2] == 1:
                 btns.append([await inline_button('✔ ' + sup(te[1]),'del_group ' + str(te[0]) + ' ' + str(page))])
             else:
                 btns.append([await inline_button('✖ ' + sup(te[1]),'add_group ' + str(te[0]) + ' ' + str(page))])
         line = []
         if page > 0:
             line.append(await inline_button('<','page 0 ' + str(page - 1)))
+        line.append(await inline_button('✅','approve 0 0'))
+        line.append(await inline_button('♻','reload 0 0'))
+        if len(btns) == 0:
+            del_msg(update_id, chat_id)
+            return
         if len(btns) > per_page:
             btns = btns[:-1]
             line.append(await inline_button('>','page 0 ' + str(page + 1)))
         btns.append(line)
-        await get(await update_inline_keyboard('Choose groups (page ' + str(page + 1) + ')', btns, mess_id, chat_id))
+        if not update_id:
+            await get(await inline_keyboard('Choose groups', btns, chat_id))
+        else:
+            await get(await update_inline_keyboard('Choose groups (page ' + str(page + 1) + ')', btns, update_id, chat_id))
+
+async def approve_groups(mess_id, chat_id):
+    async with aiosqlite.connect(database) as db:
+        groups_id = await (await db.execute('select group_id from temp_groups where id = ? and type > 0', [int(chat_id)])).fetchall()
+        if len(groups_id) > 0:
+            await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
+            for gr in groups_id:
+                await db.execute('insert into groups (group_id, id) values (?, ?)', [int(gr[0]), int(chat_id)])
+            await db.commit()
+    await del_msg(mess_id, chat_id)
+
+async def reload_groups(mess_id, chat_id):
+    await write_groups(chat_id)
+    await update_groups(chat_id, update_id=mess_id)
 
 async def go_to_page(a,b):
     pass
@@ -197,6 +238,9 @@ async def go_to_page(a,b):
 c_commands = {'add_group': add_group,
               'del_group': del_group,
               'page': go_to_page}
+
+d_commands = {'approve': approve_groups,
+              'reload': reload_groups}
 
 async def callback(info):
     mess = info['message']
@@ -206,44 +250,26 @@ async def callback(info):
     for com in c_commands:
         if com == command[0]:
             await c_commands[com](command[1], chat_id)
-            await update(int(command[2]), mess_id, chat_id)
+            await update_groups(chat_id, int(command[2]), mess_id)
+    for com in d_commands:
+        if com == command[0]:
+            await d_commands[com](mess_id, chat_id)
 
 async def make_token(w, chat_id):
     if len(w) < 2: return
     token = await get_token_from_url(w[1])
     if token and await get_id(token):
         async with aiosqlite.connect(database) as db:
-            await db.execute('insert or replace into users (id, token, last_call, last_time) values (?, ?, 0, 0)', [chat_id, token]) ##
+            await db.execute('insert or replace into users (id, token, last_time) values (?, ?, 0)', [chat_id, token]) ##
             await db.commit()
         await get(await msg('Succefull registered!' , chat_id))
     else:
         await get(await msg('Error...' , chat_id))
 
 async def choose_groups(w, chat_id):
-    async with aiosqlite.connect(database) as db:
-        resp = await (await db.execute('select token, last_call from users where id = ?', [int(chat_id)])).fetchone()
-        if resp:
-            if resp[1] != 0:
-                await get(await del_msg(resp[1], chat_id))
-            token = resp[0]
-            if await (await db.execute('select * from temp_groups where id = ?', [int(chat_id)])).fetchone():
-                await db.execute('delete from temp_groups where id = ?', [int(chat_id)])
-            groups = await get_groups(token)
-            other = [oth[0] for oth in await (await db.execute('select group_id from groups where id = ?', [int(chat_id)])).fetchall()]
-            btns = []
-            sup = await make_sup('&')
-            for gr in groups:
-                await db.execute('insert into temp_groups (group_id, name, id) values (?, ?, ?)', [int(gr['id']), gr['name'], int(chat_id)])
-                if gr['id'] in other:
-                    btns.append([await inline_button('✔ ' + sup(gr['name']),'del_group ' + str(gr['id']) + ' 0')])
-                else:
-                    btns.append([await inline_button('✖ ' + sup(gr['name']),'add_group ' + str(gr['id']) + ' 0')])
-            if len(btns) > per_page:
-                btns = btns[:per_page]
-                btns.append([await inline_button('>','page 0 1')])
-            await db.execute('update users set last_call = ? where id = ?',[(await get(await inline_keyboard('Choose groups', btns, chat_id)))['result']['message_id'], chat_id])
-            await db.commit()
-            
+    await write_groups(chat_id)
+    await update_groups(chat_id)
+
 async def start_text(q, chat_id):
     butn = [[await inline_button('Register url', url='https://goo.gl/xfAETn')]]
     await get(await inline_keyboard('Go to this link,\nafter passing on this page,\ncopy url and write command:\n/url COPIED_URL\nMore in /help', butn, chat_id))
@@ -295,9 +321,9 @@ async def webhook(request):
 
 async def create_database(app):
     async with aiosqlite.connect(database) as db:
-        await db.execute('create table if not exists users (id integer primary key not null, token text not null, last_call integer not null, last_time integer not null)')
+        await db.execute('create table if not exists users (id integer primary key not null, token text not null, last_time integer not null)')
         await db.execute('create table if not exists groups (group_id integer not null, id integer not null)')
-        await db.execute('create table if not exists temp_groups (group_id integer not null, name text not null, id integer not null)')
+        await db.execute('create table if not exists temp_groups (group_id integer not null, name text not null, id integer not null, type integer not null)')
         await db.commit()
 
 
