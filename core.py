@@ -101,7 +101,7 @@ async def get_vk_users():
         for user in users:
             if user[3] == 1:
                 await db.execute('SELECT group_id FROM groups WHERE id = {}'.format(user[0]))
-                groups = [str(-gr[0]) for gr in await (await db.fetchall()]
+                groups = [str(-gr[0]) for gr in await db.fetchall()]
                 if len(groups) > 0:
                     feed_u.append({'id': user[0], 'token': user[1], 'start_time': user[2], 'groups': ','.join(groups)})
         db.close()
