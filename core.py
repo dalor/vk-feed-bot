@@ -95,7 +95,7 @@ async def get_token_from_code(url):
 
 async def get_vk_users():
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('SELECT * FROM users')
         users = await db.fetchall()
         feed_u = []
@@ -114,7 +114,7 @@ async def get_feeds():
     resps = await a_lot_of(urls, list=False)
     all_ = []
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         for resp in resps:
             user = resp['id']
             other = resp['response']
@@ -174,19 +174,19 @@ async def get_id(token):
 
 async def add_group(group, chat_id):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('UPDATE temp_groups SET type = 1 WHERE group_id = %s AND id = %s', (group, chat_id))
     conn.close()
 
 async def del_group(group, chat_id):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('UPDATE temp_groups SET type = 0 WHERE group_id = %s AND id = %s', (group, chat_id))
     conn.close()
 
 async def write_groups(chat_id):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('UPDATE users SET ready = 0 WHERE id = %s', (chat_id,))
         await db.execute('SELECT token FROM users WHERE id = %s', (chat_id,))
         resp = await db.fetchone()
@@ -203,7 +203,7 @@ async def write_groups(chat_id):
 
 async def update_groups(chat_id, page=0, update_id=None):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('SELECT group_id, name, type FROM temp_groups WHERE id = %s LIMIT %s OFFSET %s', (chat_id, per_page + 1, per_page * page))
         temp = await db.fetchall()
         conn.close()
@@ -233,7 +233,7 @@ async def update_groups(chat_id, page=0, update_id=None):
 
 async def approve_groups(mess_id, chat_id):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('SELECT group_id FROM temp_groups WHERE id = %s AND type > 0', (chat_id,))
         groups_id = await db.fetchall()
         await db.execute('DELETE FROM temp_groups WHERE id = %s', (chat_id,))
@@ -277,7 +277,7 @@ async def make_token(w, chat_id):
     token = await get_token_from_url(w[1])
     if token and await get_id(token):
         conn = await (await aiopg.create_pool(database)).acquire()
-        async with (await conn.cursor() as db:
+        async with await conn.cursor() as db:
             await db.execute('INSERT INTO users (id, token, last_time, ready) VALUES (%s, %s, 0, 0) ON CONFLICT (id) DO UPDATE SET token = %s', (chat_id, token, token))
         conn.close()
         await get(await msg('Succefull registered!' , chat_id))
@@ -339,7 +339,7 @@ async def webhook(request):
 
 async def create_database(app):
     conn = await (await aiopg.create_pool(database)).acquire()
-    async with (await conn.cursor() as db:
+    async with await conn.cursor() as db:
         await db.execute('CREATE TABLE IF NOT EXISTS users (id integer PRIMARY KEY NOT NULL, token text NOT NULL, last_time integer NOT NULL, ready integer NOT NULL)')
         await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id integer NOT NULL, id integer NOT NULL)')
         await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
