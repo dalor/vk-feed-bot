@@ -342,7 +342,7 @@ async def create_database(app):
     async with await conn.cursor() as db:
         await db.execute('CREATE TABLE IF NOT EXISTS users (id integer PRIMARY KEY NOT NULL, token text NOT NULL, last_time integer NOT NULL, ready integer NOT NULL)')
         await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id integer NOT NULL, id integer NOT NULL)')
-        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (i integer PRIMARY KEY AUTOINCREMENT, group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
+        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (i SERIAL PRIMARY KEY, group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
     conn.close()
 
 async def web_app():
