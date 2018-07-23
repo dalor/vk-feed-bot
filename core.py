@@ -325,9 +325,9 @@ async def webhook(request):
 
 async def create_database(app):
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        await db.execute('CREATE TABLE IF NOT EXISTS users (id INTEGER NOT NULL, token TEXT NOT NULL, last_time INTEGER NOT NULL, ready INTEGER NOT NULL)')
-        await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id INTEGER NOT NULL, id INTEGER NOT NULL)')
-        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (group_id INTEGER NOT NULL, name TEXT NOT NULL, id INTEGER NOT NULL, type INTEGER NOT NULL)')
+        await db.execute('CREATE TABLE IF NOT EXISTS users (id integer PRIMARY KEY NOT NULL, token text NOT NULL, last_time integer NOT NULL, ready integer NOT NULL)')
+        await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id integer NOT NULL, id integer NOT NULL)')
+        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
         db.close()
 
 async def web_app():
