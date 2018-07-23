@@ -95,11 +95,13 @@ async def get_token_from_code(url):
 
 async def get_vk_users():
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        users = await (await db.execute('SELECT * FROM users')).fetchall()
+        await db.execute('SELECT * FROM users')
+        users = await db.fetchall()
         feed_u = []
         for user in users:
             if user[3] == 1:
-                groups = [str(-gr[0]) for gr in await (await db.execute('SELECT group_id FROM groups WHERE id = {}'.format(user[0]))).fetchall()]
+                await db.execute('SELECT group_id FROM groups WHERE id = {}'.format(user[0]))
+                groups = [str(-gr[0]) for gr in await (await db.fetchall()]
                 if len(groups) > 0:
                     feed_u.append({'id': user[0], 'token': user[1], 'start_time': user[2], 'groups': ','.join(groups)})
         db.close()
@@ -181,9 +183,11 @@ async def del_group(group, chat_id):
 async def write_groups(chat_id):
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
         await db.execute('UPDATE users SET ready = 0 WHERE id = {}'.format(chat_id))
-        resp = await (await db.execute('SELECT token FROM users WHERE id = {}'.format(chat_id))).fetchone()
+        await db.execute('SELECT token FROM users WHERE id = {}'.format(chat_id))
+        resp = await db.fetchone()
         if resp:
-            old = [gr[0] for gr in await (await db.execute('SELECT group_id FROM groups WHERE id = {}'.format(chat_id))).fetchall()]
+            await db.execute('SELECT group_id FROM groups WHERE id = {}'.format(chat_id))
+            old = [gr[0] for gr in await db.fetchall()]
             await db.execute('DELETE FROM temp_groups WHERE id = {}'.format(chat_id))
             groups = await get_groups(resp[0])
             for gr in groups:
@@ -194,7 +198,8 @@ async def write_groups(chat_id):
 
 async def update_groups(chat_id, page=0, update_id=None):
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        temp = await (await db.execute('SELECT group_id, name, type FROM temp_groups WHERE id = {} LIMIT {} OFFSET {}'.format(chat_id, per_page + 1, per_page * page))).fetchall()
+        await db.execute('SELECT group_id, name, type FROM temp_groups WHERE id = {} LIMIT {} OFFSET {}'.format(chat_id, per_page + 1, per_page * page))
+        temp = await db.fetchall()
         db.close()
         btns = []
         sup = await make_sup('&#',' ')
@@ -222,7 +227,8 @@ async def update_groups(chat_id, page=0, update_id=None):
 
 async def approve_groups(mess_id, chat_id):
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        groups_id = await (await db.execute('SELECT group_id FROM temp_groups WHERE id = {} AND type > 0'.format(chat_id))).fetchall()
+        await db.execute('SELECT group_id FROM temp_groups WHERE id = {} AND type > 0'.format(chat_id))
+        groups_id = await db.fetchall()
         await db.execute('DELETE FROM temp_groups WHERE id = {}'.format(chat_id))
         await db.execute('DELETE FROM groups WHERE id = {}'.format(chat_id))
         for gr in groups_id:
