@@ -95,7 +95,7 @@ async def get_token_from_code(url):
 
 async def get_vk_users():
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        users = await (await db.execute('select * from users')).fetchall()
+        users = await (await db.execute('SELECT * FROM users')).fetchall()
         feed_u = []
         for user in users:
             if user[3] == 1:
@@ -264,7 +264,7 @@ async def make_token(w, chat_id):
     token = await get_token_from_url(w[1])
     if token and await get_id(token):
         async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-            await db.execute('INSERT OR REPLACE users (id, token, last_time, ready) VALUES ({}, {}, 0, 0)'.format(chat_id, token))
+            await db.execute('INSERT INTO users (id, token, last_time, ready) VALUES ({0}, {1}, 0, 0) ON CONFLICT (id) DO UPDATE SET token = {1}'.format(chat_id, token))
             db.close()
         await get(await msg('Succefull registered!' , chat_id))
     else:
@@ -325,7 +325,7 @@ async def webhook(request):
 
 async def create_database(app):
     async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-        await db.execute('CREATE TABLE IF NOT EXISTS users (id integer primary key not null, token text not null, last_time integer not null, ready integer not null)')
+        await db.execute('CREATE TABLE IF NOT EXISTS users (id integer not null, token text not null, last_time integer not null, ready integer not null)')
         await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id integer not null, id integer not null)')
         await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (group_id integer not null, name text not null, id integer not null, type integer not null)')
         #db.close()
