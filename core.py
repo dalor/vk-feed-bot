@@ -264,7 +264,7 @@ async def make_token(w, chat_id):
     token = await get_token_from_url(w[1])
     if token and await get_id(token):
         async with (await (await aiopg.create_pool(database)).acquire()).cursor() as db:
-            await db.execute('INSERT INTO users (id, token, last_time, ready) VALUES ({0}, {1}, 0, 0) ON CONFLICT (id) DO UPDATE SET token = {1}'.format(chat_id, token))
+            await db.execute('INSERT INTO users (id, token, last_time, ready) VALUES ({0}, \'{1}\', 0, 0) ON CONFLICT (id) DO UPDATE SET token = \'{1}\''.format(chat_id, token))
             db.close()
         await get(await msg('Succefull registered!' , chat_id))
     else:
