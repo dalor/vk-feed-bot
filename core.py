@@ -234,7 +234,7 @@ async def approve_groups(mess_id, chat_id):
         for gr in groups_id:
             await db.execute('INSERT INTO groups(group_id, id) VALUES (%s, %s)', (gr[0], chat_id))
         if len(groups_id) > 0:
-            await db.execute('UPDATE users SET ready = 1 WHERW id = %s', (chat_id,))
+            await db.execute('UPDATE users SET ready = 1 WHERE id = %s', (chat_id,))
         db.close()
     await get(await del_msg(mess_id, chat_id))
 
