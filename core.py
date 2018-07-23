@@ -204,7 +204,7 @@ async def write_groups(chat_id):
 async def update_groups(chat_id, page=0, update_id=None):
     conn = await (await aiopg.create_pool(database)).acquire()
     async with await conn.cursor() as db:
-        await db.execute('SELECT group_id, name, type FROM temp_groups WHERE id = %s LIMIT %s OFFSET %s', (chat_id, per_page + 1, per_page * page))
+        await db.execute('SELECT group_id, name, type FROM temp_groups WHERE id = %s ORDER BY i ASC LIMIT %s OFFSET %s', (chat_id, per_page + 1, per_page * page))
         temp = await db.fetchall()
         conn.close()
         btns = []
@@ -342,7 +342,7 @@ async def create_database(app):
     async with await conn.cursor() as db:
         await db.execute('CREATE TABLE IF NOT EXISTS users (id integer PRIMARY KEY NOT NULL, token text NOT NULL, last_time integer NOT NULL, ready integer NOT NULL)')
         await db.execute('CREATE TABLE IF NOT EXISTS groups (group_id integer NOT NULL, id integer NOT NULL)')
-        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
+        await db.execute('CREATE TABLE IF NOT EXISTS temp_groups (i integer PRIMARY KEY AUTOINCREMENT, group_id integer NOT NULL, name text NOT NULL, id integer NOT NULL, type integer NOT NULL)')
     conn.close()
 
 async def web_app():
